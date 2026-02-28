@@ -97,15 +97,36 @@ Optional Append-Only File for data durability:
 • **On Startup** - The AOF file is replayed to restore state  
 • **Sync After Write** - Each command is synced to disk immediately
 
-**Example AOF file:**
+**Example AOF file (RESP-like format):**
 
 ```
-SET user:1 John
-EXPIRE user:1 60
-SET user:2 Jane
-DEL user:2
-PERSIST user:1
+*3
+$3
+SET
+$6
+user:1
+$4
+John
+*3
+$6
+EXPIRE
+$6
+user:1
+$2
+60
+*2
+$3
+DEL
+$6
+user:2
+*2
+$7
+PERSIST
+$6
+user:1
 ```
+
+Each entry uses `*N` to indicate the number of arguments, followed by `$len` and the argument value (CRLF-delimited). This format correctly handles values containing spaces.
 
 ## 📡 Protocol
 
@@ -122,6 +143,49 @@ Simple text-based protocol over TCP:
 | Number | `123\n` | `59` |
 | Not Found | `nil\n` | `nil` |
 | Error | `ERR: message\n` | `ERR: unknown command` |
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- [Go 1.25+](https://go.dev/dl/)
+
+### Build & Run
+
+```bash
+git clone https://github.com/rodrigodotdev/gokv.git
+cd gokv
+go build -o gokv ./cmd/server
+./gokv
+```
+
+The server listens on port **6379** by default. Connect with any TCP client:
+
+```bash
+nc localhost 6379
+SET hello world
+GET hello
+```
+
+### Configuration
+
+GoKV is configured via environment variables or command-line flags. Flags take precedence.
+
+| Setting | Env Var | Flag | Default | Description |
+|---------|---------|------|---------|-------------|
+| Port | `GOKV_PORT` | `-port` | `6379` | TCP listen port |
+| AOF enabled | `GOKV_AOF_ENABLED` | `-aof` | `false` | Enable append-only file persistence |
+| AOF file path | `GOKV_AOF_FILE_PATH` | `-aof-file` | `data.aof` | Path to the AOF file |
+| Cleanup interval | `GOKV_CLEANUP_INTERVAL_MS` | `-cleanup-interval` | `1000` | Expired-key cleanup sweep interval (ms) |
+| Connection timeout | `GOKV_CONN_TIMEOUT_SEC` | `-conn-timeout` | `300` | Idle connection timeout (seconds) |
+
+**Example:**
+
+```bash
+GOKV_PORT=6380 GOKV_AOF_ENABLED=true ./gokv
+# or
+./gokv -port 6380 -aof -conn-timeout 600
+```
 
 ## 📜 License
 
